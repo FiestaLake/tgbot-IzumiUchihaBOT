@@ -1,22 +1,20 @@
-from telegram import Update, Bot
-from telegram.ext import run_async
+from requests import get
+
+from telegram import Update
 
 from tg_bot.modules.disable import DisableAbleCommandHandler
 from tg_bot import dispatcher, CallbackContext
-
-from requests import get
 
 
 def ud(update: Update, context: CallbackContext):
     bot = context.bot
     try:
         message = update.effective_message
-        text = message.text[len('/ud '):]
-        results = get(
-            f'http://api.urbandictionary.com/v0/define?term={text}').json()
+        text = message.text[len("/ud ") :]
+        results = get(f"http://api.urbandictionary.com/v0/define?term={text}").json()
         reply_text = f'Word: {text}\nDefinition: {results["list"][0]["definition"]}'
     except IndexError:
-        reply_text = f'Word: {text}\nDefinition: 404 definition not found'
+        reply_text = f"Word: {text}\nDefinition: 404 definition not found"
     return message.reply_text(reply_text)
 
 
@@ -32,7 +30,7 @@ Definition: A once-popular system of telecommunications, in which the sender wou
  
 """
 
-__mod_name__ = "Urban dictionary"
+__mod_name__ = "Dictionary"
 
 ud_handle = DisableAbleCommandHandler("ud", ud, run_async=True)
 

@@ -1,15 +1,7 @@
-from time import sleep
+from telegram import TelegramError
+from telegram import Update
+from telegram.ext import Filters, CommandHandler
 
-from telegram import TelegramError, Chat, Message
-from telegram import Update, Bot
-from telegram.error import BadRequest
-from telegram.ext import MessageHandler, Filters, CommandHandler
-from telegram.ext.dispatcher import run_async
-from typing import List
-from tg_bot.modules.helper_funcs.filters import CustomFilters
-from tg_bot.modules.sql.users_sql import get_all_chats
-
-import telegram
 from tg_bot import dispatcher, CallbackContext, OWNER_ID
 
 MESSAGE_1 = "And when the lamb broke the seventh seal, there was silence in heaven."
@@ -17,7 +9,9 @@ MESSAGE_2 = "I saw the seven angels who stood before God, and to them were given
 MESSAGE_3 = "And another angel came and stood at the altar, having a golden censer to which was given too much insence."
 MESSAGE_4 = "And the smoke of the incense, which came with the prayers of the saints, ascended up before God."
 MESSAGE_5 = "And the angel took the censer, and filled it with fire of the altar, and casted it into the earth, and there were voices, and thunderings, and lightnings, and an earthquake."
-MESSAGE_6 = "The seven angels which had the seven trumpets prepared themselves to sound."
+MESSAGE_6 = (
+    "The seven angels which had the seven trumpets prepared themselves to sound."
+)
 MESSAGE_7 = "And I heard a great voice out of the temple saying to the seven angels, Go your ways, and pour out the vials of the wrath of God upon the earth."
 
 
@@ -29,7 +23,7 @@ def leave(update: Update, context: CallbackContext):
         try:
             bot.leave_chat(int(chat_id))
             update.effective_message.reply_text("Left the group successfully!")
-        except telegram.TelegramError:
+        except TelegramError:
             update.effective_message.reply_text("Attempt failed.")
     else:
         update.effective_message.reply_text("Give me a valid chat id")
@@ -57,8 +51,7 @@ __help__ = ""
 
 __mod_name__ = "Leave"
 
-LEAVE_HANDLER = CommandHandler("leave",
-                               leave,
-                               run_async=True,
-                               filters=Filters.user(OWNER_ID))
+LEAVE_HANDLER = CommandHandler(
+    "leave", leave, run_async=True, filters=Filters.user(OWNER_ID)
+)
 dispatcher.add_handler(LEAVE_HANDLER)

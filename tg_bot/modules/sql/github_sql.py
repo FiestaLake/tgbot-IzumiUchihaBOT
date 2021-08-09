@@ -1,8 +1,7 @@
 import threading
 
-from sqlalchemy import Column, String, UnicodeText, func, distinct, Integer
+from sqlalchemy import Column, String, UnicodeText, Integer
 
-from tg_bot.modules.helper_funcs.msg_types import Types
 from tg_bot.modules.sql import SESSION, BASE
 
 
@@ -10,7 +9,7 @@ class GitHub(BASE):
     __tablename__ = "github"
     chat_id = Column(
         String(14), primary_key=True
-    )  #string because int is too large to be stored in a PSQL database.
+    )  # string because int is too large to be stored in a PSQL database.
     name = Column(UnicodeText, primary_key=True)
     value = Column(UnicodeText, nullable=False)
     backoffset = Column(Integer, nullable=False, default=0)
@@ -54,14 +53,17 @@ def rm_repo(chat_id, name):
             SESSION.delete(repo)
             SESSION.commit()
             return True
-        else:
-            SESSION.close()
-            return False
+        SESSION.close()
+        return False
 
 
 def get_all_repos(chat_id):
     try:
-        return SESSION.query(GitHub).filter(
-            GitHub.chat_id == str(chat_id)).order_by(GitHub.name.asc()).all()
+        return (
+            SESSION.query(GitHub)
+            .filter(GitHub.chat_id == str(chat_id))
+            .order_by(GitHub.name.asc())
+            .all()
+        )
     finally:
         SESSION.close()

@@ -1,20 +1,27 @@
 import html
-from typing import Optional, List
+from typing import Optional
 
-from telegram import Message, Chat, Update, Bot, User, MessageEntity
+from telegram import Message, Chat, Update, User, ParseMode
 from telegram.error import BadRequest
-from telegram.ext import run_async, CommandHandler, Filters
+from telegram.ext import CommandHandler, Filters
 from telegram.utils.helpers import mention_html
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, User, CallbackQuery
 
 from tg_bot import dispatcher, CallbackContext, BAN_STICKER, LOGGER
 from tg_bot.modules.disable import DisableAbleCommandHandler
-from tg_bot.modules.helper_funcs.chat_status import bot_admin, user_admin, is_user_ban_protected, can_restrict, \
-    is_user_admin, is_user_in_chat, is_bot_admin
-from tg_bot.modules.helper_funcs.extraction import extract_user_and_text, extract_multiple_users
+from tg_bot.modules.helper_funcs.chat_status import (
+    bot_admin,
+    user_admin,
+    is_user_ban_protected,
+    can_restrict,
+    is_user_admin,
+    is_user_in_chat,
+)
+from tg_bot.modules.helper_funcs.extraction import (
+    extract_user_and_text,
+    extract_multiple_users,
+)
 from tg_bot.modules.helper_funcs.string_handling import extract_time
 from tg_bot.modules.log_channel import loggable
-from tg_bot.modules.helper_funcs.filters import CustomFilters
 from tg_bot.modules.helper_funcs.perms import check_perms
 
 
@@ -48,96 +55,104 @@ def ban(update: Update, context: CallbackContext):
                 integerID = int(id)
                 member = chat.get_member(integerID)
                 if integerID == bot.id:
-                    message.reply_text("I wont ban myself... " +
-                                       str(integerID) + " is my ID.")
-                    continue
-                if integerID == 777000 or integerID == 1087968824:
                     message.reply_text(
-                        str(integerID) +
-                        " is an account reserved for telegram, I cannot ban it"
+                        "I wont ban myself... " + str(integerID) + " is my ID."
+                    )
+                    continue
+                if integerID in (777000, 1087968824):
+                    message.reply_text(
+                        str(integerID)
+                        + " is an account reserved for telegram, I cannot ban it"
                     )
                     continue
                 if is_user_ban_protected(chat, integerID, member):
-                    message.reply_text("Can't ban " + str(integerID) +
-                                       ", user is ban protected.")
+                    message.reply_text(
+                        "Can't ban " + str(integerID) + ", user is ban protected."
+                    )
                     continue
                 try:
-                    chat.kick_member(integerID)
+                    chat.ban_member(integerID)
                     # bot.send_sticker(update.effective_chat.id, BAN_STICKER)  # ban sticker
                     reply = "{} has been banned!".format(
-                        mention_html(member.user.id, member.user.first_name))
+                        mention_html(member.user.id, member.user.first_name)
+                    )
                     message.reply_text(reply, parse_mode=ParseMode.HTML)
                     log += "ID: " + str(member.user.id) + "\n"
                 except BadRequest as excp:
                     LOGGER.warning(update)
                     LOGGER.exception(
                         "ERROR banning user %s in chat %s (%s) due to %s",
-                        integerID, chat.title, chat.id, excp.message)
-                    message.reply_text("Well damn, I can't ban " +
-                                       str(integerID))
+                        integerID,
+                        chat.title,
+                        chat.id,
+                        excp.message,
+                    )
+                    message.reply_text("Well damn, I can't ban " + str(integerID))
             except ValueError:
-                message.reply_text("Error parsing the ID: " + id +
-                                   " is not a valid user ID")
+                message.reply_text(
+                    "Error parsing the ID: " + id + " is not a valid user ID"
+                )
             except BadRequest as excp:
                 if excp.message == "User not found":
-                    message.reply_text("User " + str(integerID) +
-                                       "has not been found")
+                    message.reply_text("User " + str(integerID) + "has not been found")
                     continue
-                else:
-                    raise
-        return log
-
-    else:
-        user_id, reason = extract_user_and_text(message, args)
-        if not user_id or int(user_id) == 777000 or int(user_id) == 1087968824:
-            message.reply_text("You don't seem to be referring to a user.")
-            return ""
-        try:
-            member = chat.get_member(user_id)
-        except BadRequest as excp:
-            if excp.message == "User not found":
-                message.reply_text("404 - user not found")
-                return ""
-            else:
                 raise
-        if user_id == bot.id:
-            message.reply_text("hahahahahahaha nice try.. nope")
-            return ""
-        if is_user_ban_protected(chat, user_id, member):
-            message.reply_text("Can't do that, user is admin..")
-            return ""
-        log = "<b>{}:</b>" \
-              "\n#BANNED" \
-              "\n<b>Admin:</b> {}" \
-              "\n<b>User:</b> {} (<code>{}</code>)".format(html.escape(chat.title),
-                                                           mention_html(user.id, user.first_name),
-                                                           mention_html(member.user.id, member.user.first_name),
-                                                           member.user.id)
-        if reason:
-            log += "\n<b>Reason:</b> {}".format(reason)
-        try:
-            chat.kick_member(user_id)
-            bot.send_sticker(update.effective_chat.id,
-                             BAN_STICKER)  # ban sticker
-            reply = "{} has been banned!".format(
-                mention_html(member.user.id, member.user.first_name))
-            reply += "\nReason: <code>{}</code>".format(
-                reason) if reason else ""
-
-            message.reply_text(reply, parse_mode=ParseMode.HTML)
-            return log
-        except BadRequest as excp:
-            if excp.message == "Reply message not found":
-                # Do not reply
-                message.reply_text('Banned!', quote=False)
-                return log
-            else:
-                LOGGER.warning(update)
-                LOGGER.exception(
-                    "ERROR banning user %s in chat %s (%s) due to %s", user_id,
-                    chat.title, chat.id, excp.message)
-                message.reply_text("Well damn, I can't ban that user.")
+        return log
+    user_id, reason = extract_user_and_text(message, args)
+    if not user_id or int(user_id) == 777000 or int(user_id) == 1087968824:
+        message.reply_text("You don't seem to be referring to a user.")
         return ""
+    try:
+        member = chat.get_member(user_id)
+    except BadRequest as excp:
+        if excp.message == "User not found":
+            message.reply_text("404 - user not found")
+            return ""
+        raise
+    if user_id == bot.id:
+        message.reply_text("hahahahahahaha nice try.. nope")
+        return ""
+    if is_user_ban_protected(chat, user_id, member):
+        message.reply_text("Can't do that, user is admin..")
+        return ""
+    log = (
+        "<b>{}:</b>"
+        "\n#BANNED"
+        "\n<b>Admin:</b> {}"
+        "\n<b>User:</b> {} (<code>{}</code>)".format(
+            html.escape(chat.title),
+            mention_html(user.id, user.first_name),
+            mention_html(member.user.id, member.user.first_name),
+            member.user.id,
+        )
+    )
+    if reason:
+        log += "\n<b>Reason:</b> {}".format(reason)
+    try:
+        chat.ban_member(user_id)
+        bot.send_sticker(update.effective_chat.id, BAN_STICKER)  # ban sticker
+        reply = "{} has been banned!".format(
+            mention_html(member.user.id, member.user.first_name)
+        )
+        reply += "\nReason: <code>{}</code>".format(reason) if reason else ""
+
+        message.reply_text(reply, parse_mode=ParseMode.HTML)
+        return log
+    except BadRequest as excp:
+        if excp.message == "Reply message not found":
+            # Do not reply
+            message.reply_text("Banned!", quote=False)
+            return log
+        LOGGER.warning(update)
+        LOGGER.exception(
+            "ERROR banning user %s in chat %s (%s) due to %s",
+            user_id,
+            chat.title,
+            chat.id,
+            excp.message,
+        )
+        message.reply_text("Well damn, I can't ban that user.")
+    return ""
 
 
 @bot_admin
@@ -164,8 +179,7 @@ def temp_ban(update: Update, context: CallbackContext):
         if excp.message == "User not found":
             message.reply_text("404 - user not found")
             return ""
-        else:
-            raise
+        raise
 
     if is_user_ban_protected(chat, user_id, member):
         message.reply_text("Can't do that, user is admin..")
@@ -176,8 +190,7 @@ def temp_ban(update: Update, context: CallbackContext):
         return ""
 
     if not reason:
-        message.reply_text(
-            "You haven't specified a time to ban this user for!")
+        message.reply_text("You haven't specified a time to ban this user for!")
         return ""
 
     split_reason = reason.split(None, 1)
@@ -193,40 +206,51 @@ def temp_ban(update: Update, context: CallbackContext):
     if not bantime:
         return ""
 
-    log = "<b>{}:</b>" \
-          "\n#TEMP BANNED" \
-          "\n<b>Admin:</b> {}" \
-          "\n<b>User:</b> {} (<code>{}</code>)" \
-          "\n<b>Time:</b> {}".format(html.escape(chat.title),
-                                     mention_html(user.id, user.first_name),
-                                     mention_html(member.user.id, member.user.first_name),
-                                     member.user.id,
-                                     time_val)
+    log = (
+        "<b>{}:</b>"
+        "\n#TEMP BANNED"
+        "\n<b>Admin:</b> {}"
+        "\n<b>User:</b> {} (<code>{}</code>)"
+        "\n<b>Time:</b> {}".format(
+            html.escape(chat.title),
+            mention_html(user.id, user.first_name),
+            mention_html(member.user.id, member.user.first_name),
+            member.user.id,
+            time_val,
+        )
+    )
     if reason:
         log += "\n<b>Reason:</b> {}".format(reason)
 
     try:
-        chat.kick_member(user_id, until_date=bantime)
+        chat.ban_member(user_id, until_date=bantime)
         bot.send_sticker(chat.id, BAN_STICKER)  # ban sticker
         reply = "\nReason: <code>{}</code>".format(reason) if reason else ""
-        message.reply_text("Banned! {} will be banned for {}.".format(
-            mention_html(member.user.id, member.user.first_name), time_val) +
-                           reply,
-                           parse_mode=ParseMode.HTML)
+        message.reply_text(
+            "Banned! {} will be banned for {}.".format(
+                mention_html(member.user.id, member.user.first_name), time_val
+            )
+            + reply,
+            parse_mode=ParseMode.HTML,
+        )
         return log
 
     except BadRequest as excp:
         if excp.message == "Reply message not found":
             # Do not reply
             message.reply_text(
-                "Banned! User will be banned for {}.".format(time_val),
-                quote=False)
+                "Banned! User will be banned for {}.".format(time_val), quote=False
+            )
             return log
-        else:
-            LOGGER.warning(update)
-            LOGGER.exception("ERROR banning user %s in chat %s (%s) due to %s",
-                             user_id, chat.title, chat.id, excp.message)
-            message.reply_text("Well damn, I can't ban that user.")
+        LOGGER.warning(update)
+        LOGGER.exception(
+            "ERROR banning user %s in chat %s (%s) due to %s",
+            user_id,
+            chat.title,
+            chat.id,
+            excp.message,
+        )
+        message.reply_text("Well damn, I can't ban that user.")
 
     return ""
 
@@ -262,88 +286,90 @@ def kick(update: Update, context: CallbackContext):
                 integerID = int(id)
                 member = chat.get_member(integerID)
                 if is_user_ban_protected(chat, integerID, member):
-                    message.reply_text("Can't kick " + str(integerID) +
-                                       ", user is ban protected.")
+                    message.reply_text(
+                        "Can't kick " + str(integerID) + ", user is ban protected."
+                    )
                     continue
                 if integerID == bot.id:
-                    message.reply_text("I wont ban myself... " +
-                                       str(integerID) + " is my ID.")
-                    continue
-                if integerID == 777000 or integerID == 1087968824:
                     message.reply_text(
-                        str(integerID) +
-                        " is an account reserved for telegram, I cannot kick it"
+                        "I wont ban myself... " + str(integerID) + " is my ID."
+                    )
+                    continue
+                if integerID in (777000, 1087968824):
+                    message.reply_text(
+                        str(integerID)
+                        + " is an account reserved for telegram, I cannot kick it"
                     )
                     continue
                 res = chat.unban_member(integerID)
                 if res:
-                    #bot.send_sticker(chat.id, BAN_STICKER)  # ban sticker
+                    # bot.send_sticker(chat.id, BAN_STICKER)  # ban sticker
                     reply = "{} has been kicked!".format(
-                        mention_html(member.user.id, member.user.first_name))
+                        mention_html(member.user.id, member.user.first_name)
+                    )
                     message.reply_text(reply, parse_mode=ParseMode.HTML)
                     log += "ID: " + str(member.user.id) + "\n"
                 else:
                     message.reply_text("Well damn, I can't kick that user.")
             except ValueError:
-                message.reply_text("Error parsing the ID: " + id +
-                                   " is not a valid user ID")
+                message.reply_text(
+                    "Error parsing the ID: " + id + " is not a valid user ID"
+                )
             except BadRequest as excp:
                 if excp.message == "User not found":
-                    message.reply_text("User " + str(integerID) +
-                                       "has not been found")
+                    message.reply_text("User " + str(integerID) + "has not been found")
                     continue
-                else:
-                    raise
-        return log
-    else:
-        user_id, reason = extract_user_and_text(message, args)
-        if not user_id or int(user_id) == 777000 or int(user_id) == 1087968824:
-            message.reply_text("You don't seem to be referring to a user.")
-            return ""
-        try:
-            member = chat.get_member(user_id)
-        except BadRequest as excp:
-            if excp.message == "User not found":
-                message.reply_text("404 - user not found")
-                return ""
-            else:
                 raise
-
-        if is_user_ban_protected(chat, user_id):
-            message.reply_text(
-                "I'm not gonna kick an admin... Though I reckon it'd be pretty funny."
-            )
-            return ""
-
-        if user_id == bot.id:
-            message.reply_text("hahahahahahaha nice try.. nope")
-            return ""
-
-        res = chat.unban_member(user_id)  # unban on current user = kick
-        if res:
-            bot.send_sticker(chat.id, BAN_STICKER)  # ban sticker
-            reply = "{} has been kicked!".format(
-                mention_html(member.user.id, member.user.first_name))
-            reply += "\nReason: <code>{}</code>".format(
-                reason) if reason else ""
-            message.reply_text(reply, parse_mode=ParseMode.HTML)
-
-            log = "<b>{}:</b>" \
-                  "\n#KICKED" \
-                  "\n<b>Admin:</b> {}" \
-                  "\n<b>User:</b> {} (<code>{}</code>)".format(html.escape(chat.title),
-                                                               mention_html(user.id, user.first_name),
-                                                               mention_html(member.user.id, member.user.first_name),
-                                                               member.user.id)
-            if reason:
-                log += "\n<b>Reason:</b> {}".format(reason)
-
-            return log
-
-        else:
-            message.reply_text("Well damn, I can't kick that user.")
-
+        return log
+    user_id, reason = extract_user_and_text(message, args)
+    if not user_id or int(user_id) == 777000 or int(user_id) == 1087968824:
+        message.reply_text("You don't seem to be referring to a user.")
         return ""
+    try:
+        member = chat.get_member(user_id)
+    except BadRequest as excp:
+        if excp.message == "User not found":
+            message.reply_text("404 - user not found")
+            return ""
+        raise
+
+    if is_user_ban_protected(chat, user_id):
+        message.reply_text(
+            "I'm not gonna kick an admin... Though I reckon it'd be pretty funny."
+        )
+        return ""
+
+    if user_id == bot.id:
+        message.reply_text("hahahahahahaha nice try.. nope")
+        return ""
+
+    res = chat.unban_member(user_id)  # unban on current user = kick
+    if res:
+        bot.send_sticker(chat.id, BAN_STICKER)  # ban sticker
+        reply = "{} has been kicked!".format(
+            mention_html(member.user.id, member.user.first_name)
+        )
+        reply += "\nReason: <code>{}</code>".format(reason) if reason else ""
+        message.reply_text(reply, parse_mode=ParseMode.HTML)
+
+        log = (
+            "<b>{}:</b>"
+            "\n#KICKED"
+            "\n<b>Admin:</b> {}"
+            "\n<b>User:</b> {} (<code>{}</code>)".format(
+                html.escape(chat.title),
+                mention_html(user.id, user.first_name),
+                mention_html(member.user.id, member.user.first_name),
+                member.user.id,
+            )
+        )
+        if reason:
+            log += "\n<b>Reason:</b> {}".format(reason)
+
+        return log
+    message.reply_text("Well damn, I can't kick that user.")
+
+    return ""
 
 
 @bot_admin
@@ -355,7 +381,7 @@ def banme(update: Update, context: CallbackContext):
         update.effective_message.reply_text("Sorry, can't do that")
         return
 
-    res = update.effective_chat.kick_member(user_id)
+    res = update.effective_chat.ban_member(user_id)
     if res:
         update.effective_message.reply_text("You shall be banned.")
     else:
@@ -371,8 +397,7 @@ def kickme(update: Update, context: CallbackContext):
         update.effective_message.reply_text("Sorry, can't do that")
         return
 
-    res = update.effective_chat.unban_member(
-        user_id)  # unban on current user = kick
+    res = update.effective_chat.unban_member(user_id)  # unban on current user = kick
     if res:
         update.effective_message.reply_text("Okay...")
     else:
@@ -403,8 +428,7 @@ def unban(update: Update, context: CallbackContext):
         if excp.message == "User not found":
             message.reply_text("404 - user not found")
             return ""
-        else:
-            raise
+        raise
 
     if user_id == bot.id:
         message.reply_text("How would I unban myself if I wasn't here...?")
@@ -415,17 +439,24 @@ def unban(update: Update, context: CallbackContext):
         return ""
 
     chat.unban_member(user_id)
-    message.reply_text("Yep, {} can join!".format(
-        mention_html(member.user.id, member.user.first_name)),
-                       parse_mode=ParseMode.HTML)
+    message.reply_text(
+        "Yep, {} can join!".format(
+            mention_html(member.user.id, member.user.first_name)
+        ),
+        parse_mode=ParseMode.HTML,
+    )
 
-    log = "<b>{}:</b>" \
-          "\n#UNBANNED" \
-          "\n<b>Admin:</b> {}" \
-          "\n<b>User:</b> {} (<code>{}</code>)".format(html.escape(chat.title),
-                                                       mention_html(user.id, user.first_name),
-                                                       mention_html(member.user.id, member.user.first_name),
-                                                       member.user.id)
+    log = (
+        "<b>{}:</b>"
+        "\n#UNBANNED"
+        "\n<b>Admin:</b> {}"
+        "\n<b>User:</b> {} (<code>{}</code>)".format(
+            html.escape(chat.title),
+            mention_html(user.id, user.first_name),
+            mention_html(member.user.id, member.user.first_name),
+            member.user.id,
+        )
+    )
     if reason:
         log += "\n<b>Reason:</b> {}".format(reason)
 
@@ -451,44 +482,28 @@ An example of temporarily banning someone:
 
 __mod_name__ = "Bans"
 
-BAN_HANDLER = CommandHandler("ban",
-                             ban,
-                             filters=Filters.chat_type.groups,
-                             run_async=True)
-TEMPBAN_HANDLER = CommandHandler(["tban", "tempban"],
-                                 temp_ban,
-                                 filters=Filters.chat_type.groups,
-                                 run_async=True)
-KICK_HANDLER = CommandHandler("kick",
-                              kick,
-                              filters=Filters.chat_type.groups,
-                              run_async=True)
-UNBAN_HANDLER = CommandHandler("unban",
-                               unban,
-                               filters=Filters.chat_type.groups,
-                               run_async=True)
-KICKME_HANDLER = DisableAbleCommandHandler("kickme",
-                                           kickme,
-                                           filters=Filters.chat_type.groups,
-                                           run_async=True)
-RIPME_HANDLER = DisableAbleCommandHandler("rip",
-                                          kickme,
-                                          filters=Filters.chat_type.groups,
-                                          run_async=True)
-AFK_HANDLER = DisableAbleCommandHandler("afk",
-                                        kickme,
-                                        filters=Filters.chat_type.groups,
-                                        run_async=True)
-BANME_HANDLER = DisableAbleCommandHandler("banme",
-                                          banme,
-                                          filters=Filters.chat_type.groups,
-                                          run_async=True)
+BAN_HANDLER = CommandHandler(
+    "ban", ban, filters=Filters.chat_type.groups, run_async=True
+)
+TEMPBAN_HANDLER = CommandHandler(
+    ["tban", "tempban"], temp_ban, filters=Filters.chat_type.groups, run_async=True
+)
+KICK_HANDLER = CommandHandler(
+    "kick", kick, filters=Filters.chat_type.groups, run_async=True
+)
+UNBAN_HANDLER = CommandHandler(
+    "unban", unban, filters=Filters.chat_type.groups, run_async=True
+)
+KICKME_HANDLER = DisableAbleCommandHandler(
+    "kickme", kickme, filters=Filters.chat_type.groups, run_async=True
+)
+BANME_HANDLER = DisableAbleCommandHandler(
+    "banme", banme, filters=Filters.chat_type.groups, run_async=True
+)
 
 dispatcher.add_handler(BAN_HANDLER)
 dispatcher.add_handler(TEMPBAN_HANDLER)
 dispatcher.add_handler(KICK_HANDLER)
 dispatcher.add_handler(UNBAN_HANDLER)
 dispatcher.add_handler(KICKME_HANDLER)
-dispatcher.add_handler(RIPME_HANDLER)
-dispatcher.add_handler(AFK_HANDLER)
 dispatcher.add_handler(BANME_HANDLER)

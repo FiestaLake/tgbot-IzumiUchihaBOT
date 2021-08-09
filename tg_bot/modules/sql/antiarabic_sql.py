@@ -1,8 +1,9 @@
 import threading
 from typing import Union
 
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, String, Boolean
 
+from tg_bot import LOGGER
 from tg_bot.modules.sql import SESSION, BASE
 
 
@@ -29,6 +30,14 @@ def chat_antiarabic(chat_id: Union[str, int]) -> bool:
         if chat_setting:
             return chat_setting.antiarabic
         return False
+    except:
+        LOGGER.warning(
+            "Unknown errors happened while querying"
+            + "chat_antiarabic using sql.\n"
+            + "Chat ID: %s",
+            chat_id,
+        )
+        return False
     finally:
         SESSION.close()
 
@@ -46,8 +55,11 @@ def set_chat_setting(chat_id: Union[int, str], setting: bool):
 
 def migrate_chat(old_chat_id, new_chat_id):
     with CHAT_LOCK:
-        chat_notes = SESSION.query(AntiArabicChatSettings).filter(
-            AntiArabicChatSettings.chat_id == str(old_chat_id)).all()
+        chat_notes = (
+            SESSION.query(AntiArabicChatSettings)
+            .filter(AntiArabicChatSettings.chat_id == str(old_chat_id))
+            .all()
+        )
         for note in chat_notes:
             note.chat_id = str(new_chat_id)
         SESSION.commit()

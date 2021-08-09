@@ -1,10 +1,10 @@
-import html, time
-from typing import Optional, List
+import html
+import time
+from typing import Optional
 
-from telegram import Message, Chat, Update, Bot, User
+from telegram import Message, Chat, Update, User
 from telegram.error import BadRequest
 from telegram.ext import CommandHandler, Filters
-from telegram.ext.dispatcher import run_async
 from telegram.utils.helpers import mention_html
 
 from tg_bot import dispatcher, CallbackContext, LOGGER
@@ -33,8 +33,9 @@ def purge(update: Update, context: CallbackContext) -> str:
                 if new_del < delete_to:
                     delete_to = new_del
 
-            for m_id in range(delete_to, message_id - 1,
-                              -1):  # Reverse iteration over message ids
+            for m_id in range(
+                delete_to, message_id - 1, -1
+            ):  # Reverse iteration over message ids
                 try:
                     bot.deleteMessage(chat.id, m_id)
                 except BadRequest as err:
@@ -42,7 +43,7 @@ def purge(update: Update, context: CallbackContext) -> str:
                         bot.send_message(
                             chat.id,
                             "Cannot delete all messages. The messages may be too old, I might "
-                            "not have delete rights, or this might not be a supergroup."
+                            "not have delete rights, or this might not be a supergroup.",
                         )
 
                     elif err.message != "Message to delete not found":
@@ -55,7 +56,7 @@ def purge(update: Update, context: CallbackContext) -> str:
                     bot.send_message(
                         chat.id,
                         "Cannot delete all messages. The messages may be too old, I might "
-                        "not have delete rights, or this might not be a supergroup."
+                        "not have delete rights, or this might not be a supergroup.",
                     )
 
                 elif err.message != "Message to delete not found":
@@ -64,16 +65,19 @@ def purge(update: Update, context: CallbackContext) -> str:
             del_msg = bot.send_message(chat.id, "Purge complete.")
             time.sleep(5)
             del_msg.delete()
-            return "<b>{}:</b>" \
-                   "\n#PURGE" \
-                   "\n<b>Admin:</b> {}" \
-                   "\nPurged <code>{}</code> messages.".format(html.escape(chat.title),
-                                                               mention_html(user.id, user.first_name),
-                                                               delete_to - message_id)
+            return (
+                "<b>{}:</b>"
+                "\n#PURGE"
+                "\n<b>Admin:</b> {}"
+                "\nPurged <code>{}</code> messages.".format(
+                    html.escape(chat.title),
+                    mention_html(user.id, user.first_name),
+                    delete_to - message_id,
+                )
+            )
 
     else:
-        msg.reply_text(
-            "Reply to a message to select where to start purging from.")
+        msg.reply_text("Reply to a message to select where to start purging from.")
 
     return ""
 
@@ -91,11 +95,14 @@ def del_message(update: Update, context: CallbackContext) -> str:
         if can_delete(chat, bot.id):
             update.effective_message.reply_to_message.delete()
             update.effective_message.delete()
-            return "<b>{}:</b>" \
-                   "\n#DEL" \
-                   "\n<b>Admin:</b> {}" \
-                   "\nMessage deleted.".format(html.escape(chat.title),
-                                               mention_html(user.id, user.first_name))
+            return (
+                "<b>{}:</b>"
+                "\n#DEL"
+                "\n<b>Admin:</b> {}"
+                "\nMessage deleted.".format(
+                    html.escape(chat.title), mention_html(user.id, user.first_name)
+                )
+            )
     else:
         update.effective_message.reply_text("Whadya want to delete?")
 
@@ -114,14 +121,12 @@ messages all together or individually.
 
 __mod_name__ = "Purges"
 
-DELETE_HANDLER = CommandHandler("del",
-                                del_message,
-                                filters=Filters.chat_type.groups,
-                                run_async=True)
-PURGE_HANDLER = CommandHandler("purge",
-                               purge,
-                               filters=Filters.chat_type.groups,
-                               run_async=True)
+DELETE_HANDLER = CommandHandler(
+    "del", del_message, filters=Filters.chat_type.groups, run_async=True
+)
+PURGE_HANDLER = CommandHandler(
+    "purge", purge, filters=Filters.chat_type.groups, run_async=True
+)
 
 dispatcher.add_handler(DELETE_HANDLER)
 dispatcher.add_handler(PURGE_HANDLER)

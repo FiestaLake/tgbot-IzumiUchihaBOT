@@ -1,31 +1,40 @@
+import datetime as dt
 import html
 import time
 from typing import Optional
 
-from telegram import Message, Chat, Update, User
+from telegram import Message, Chat, Update, User, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import CommandHandler, Filters
 from telegram.utils.helpers import mention_html
 
-from tg_bot import dispatcher, CallbackContext, LOGGER
-from tg_bot.modules.helper_funcs.chat_status import user_admin, can_delete
+from tg_bot import dispatcher, CallbackContext
+from tg_bot.modules.helper_funcs.chat_status import (
+    bot_admin,
+    user_admin,
+    bot_can_delete,
+)
 from tg_bot.modules.log_channel import loggable
 from tg_bot.modules.helper_funcs.perms import check_perms
 
 
 @user_admin
+@bot_admin
+@bot_can_delete
 @loggable
 def purge(update: Update, context: CallbackContext) -> str:
     if not check_perms(update, 0):
-        return
+        return ""
     bot, args = context.bot, context.args
     msg = update.effective_message  # type: Optional[Message]
     chat = update.effective_chat  # type: Optional[Chat]
     user = update.effective_user  # type: Optional[User]
+    reply_msg = msg.reply_to_message
+    now = dt.datetime.now(dt.timezone.utc)
 
-    if msg.reply_to_message:
-        if can_delete(chat, bot.id):
-            message_id = msg.reply_to_message.message_id
+    if reply_msg:
+        if reply_msg.date > now - dt.timedelta(2):
+            message_id = reply_msg.message_id
             delete_to = msg.message_id - 1
             if args and args[0].isdigit():
                 new_del = message_id + int(args[0])
@@ -39,32 +48,36 @@ def purge(update: Update, context: CallbackContext) -> str:
                 try:
                     bot.deleteMessage(chat.id, m_id)
                 except BadRequest as err:
-                    if err.message == "Message can't be deleted":
-                        bot.send_message(
-                            chat.id,
-                            "Cannot delete all messages. The messages may be too old, I might "
-                            "not have delete rights, or this might not be a supergroup.",
-                        )
-
-                    elif err.message != "Message to delete not found":
-                        LOGGER.exception("Error while purging chat messages.")
+                    purge_err = err.message
 
             try:
                 msg.delete()
             except BadRequest as err:
-                if err.message == "Message can't be deleted":
-                    bot.send_message(
-                        chat.id,
-                        "Cannot delete all messages. The messages may be too old, I might "
-                        "not have delete rights, or this might not be a supergroup.",
-                    )
+                if err.message in (
+                    "Message to delete not found",
+                    "Message can't be deleted",
+                ):
+                    pass
 
-                elif err.message != "Message to delete not found":
-                    LOGGER.exception("Error while purging chat messages.")
+            fin_text = "Purge complete\."
+            if "purge_err" in locals():
+                fin_text += (
+                    f"\nI couldn't delete some messages\.\nLast error: `{purge_err}`"
+                )
 
-            del_msg = bot.send_message(chat.id, "Purge complete.")
-            time.sleep(5)
-            del_msg.delete()
+            del_msg = bot.send_message(
+                chat.id, fin_text, parse_mode=ParseMode.MARKDOWN_V2
+            )
+            time.sleep(10)
+            try:
+                del_msg.delete()
+            except BadRequest as err:
+                if err.message in (
+                    "Message to delete not found",
+                    "Message can't be deleted",
+                ):
+                    pass
+
             return (
                 "<b>{}:</b>"
                 "\n#PURGE"
@@ -76,47 +89,61 @@ def purge(update: Update, context: CallbackContext) -> str:
                 )
             )
 
-    else:
-        msg.reply_text("Reply to a message to select where to start purging from.")
+        msg.reply_text(
+            "I can't purge messages over two days old."
+            "Please choose a more recent message."
+        )
+        return ""
 
+    msg.reply_text("Reply to a message where to purge from.")
     return ""
 
 
 @user_admin
+@bot_admin
+@bot_can_delete
 @loggable
 def del_message(update: Update, context: CallbackContext) -> str:
     if not check_perms(update, 0):
-        return
-    bot = context.bot
-    if update.effective_message.reply_to_message:
-        user = update.effective_user  # type: Optional[User]
-        chat = update.effective_chat  # type: Optional[Chat]
+        return ""
+    msg = update.effective_message  # type: Optional[Message]
+    reply_msg = msg.reply_to_message
 
-        if can_delete(chat, bot.id):
-            update.effective_message.reply_to_message.delete()
-            update.effective_message.delete()
-            return (
-                "<b>{}:</b>"
-                "\n#DEL"
-                "\n<b>Admin:</b> {}"
-                "\nMessage deleted.".format(
-                    html.escape(chat.title), mention_html(user.id, user.first_name)
-                )
-            )
-    else:
-        update.effective_message.reply_text("Whadya want to delete?")
+    if reply_msg:
+        try:
+            reply_msg.delete()
+        except BadRequest as err:
+            if err.message in (
+                "Message to delete not found",
+                "Message can't be deleted",
+            ):
+                msg.reply_text("I couldn't delete a message.")
+                return ""
 
+        try:
+            msg.delete()
+        except BadRequest as err:
+            if err.message in (
+                "Message to delete not found",
+                "Message can't be deleted",
+            ):
+                pass
+
+        return ""
+
+    msg.reply_text("Reply to a message to delete.")
     return ""
 
 
 __help__ = """
-Deleting messages made easy with this command. Bot purges \
-messages all together or individually.
+*Purges*
 
-*Admin only:*
- - /del: deletes the message you replied to
- - /purge: deletes all messages between this and the replied to message.
- - /purge <integer X>: deletes the replied message, and X messages following it.
+Deleting lots of messages is now easier than ever with purges!
+
+*Admin commands:*
+ - /del: Deletes the replied to message.
+ - /purge: Delete all messages from the replied to message, to the current message.
+ - /purge `<integer X>`: Delete the following X messages after the replied to message.
 """
 
 __mod_name__ = "Purges"

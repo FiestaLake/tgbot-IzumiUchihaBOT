@@ -49,6 +49,11 @@ def purge(update: Update, context: CallbackContext) -> str:
                     bot.deleteMessage(chat.id, m_id)
                 except BadRequest as err:
                     purge_err = err.message
+                    if not err.message in (
+                        "Message to delete not found",
+                        "Message can't be deleted",
+                    ):
+                        break
 
             try:
                 msg.delete()
@@ -90,7 +95,7 @@ def purge(update: Update, context: CallbackContext) -> str:
             )
 
         msg.reply_text(
-            "I can't purge messages over two days old."
+            "I can't purge messages over two days old.\n"
             "Please choose a more recent message."
         )
         return ""

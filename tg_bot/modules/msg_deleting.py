@@ -8,7 +8,7 @@ from telegram.error import BadRequest
 from telegram.ext import CommandHandler, Filters
 from telegram.utils.helpers import mention_html
 
-from tg_bot import dispatcher, CallbackContext
+from tg_bot import LOGGER, dispatcher, CallbackContext
 from tg_bot.modules.helper_funcs.chat_status import (
     bot_admin,
     user_admin,
@@ -48,11 +48,12 @@ def purge(update: Update, context: CallbackContext) -> str:
                 try:
                     bot.deleteMessage(chat.id, m_id)
                 except BadRequest as err:
-                    purge_err = err.message
                     if not err.message in (
                         "Message to delete not found",
                         "Message can't be deleted",
                     ):
+                        purge_err = err.message
+                        LOGGER.exception(err)
                         break
 
             try:
@@ -118,12 +119,8 @@ def del_message(update: Update, context: CallbackContext) -> str:
         try:
             reply_msg.delete()
         except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                msg.reply_text("I couldn't delete a message.")
-                return ""
+            msg.reply_text("I couldn't delete a message.")
+            return ""
 
         try:
             msg.delete()

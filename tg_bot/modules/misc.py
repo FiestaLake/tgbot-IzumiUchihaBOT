@@ -590,11 +590,16 @@ def gdpr(update: Update, context: CallbackContext):
 MARKDOWN_HELP = """
 <b>Formatting with Markdown</b>
 
-You can format your messages using <b>bold</b>, <i>italic</i>, and more! \
-Let's learn how to use them.
+You can format your messages using <b>bold</b>, <i>italic</i>, and more!
+Let's learn how to use them!
 
+<b>Supported markdowns</b>:
 - <code>*bold*</code>: Asterisks(*) will create <b>bold text</b>.
 - <code>_italic_</code>: Underscores(_) will create <i>italic text</i>.
+- <code>~strikethrough~</code>: Tildes(~) will create <s>strikethrough text</s>.
+- <code>__underline__</code>: Double underscores(__) will create <u>underline text</u>.
+ -> <b>NOTE</b>: Some clients try to be smart and interpret it as italic.\
+ In that case, try to use your app's built-in formatting.
 - <code>`code`</code>: Backticks(`) will create <code>monospaced text</code>.
 - <code>[hyperlink](google.com)</code>: This will create a hyperlink which links to Google.
 - <code>[button](buttonurl://google.com)</code>: This will create a button which links to Google.

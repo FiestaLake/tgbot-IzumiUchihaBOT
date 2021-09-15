@@ -1,3 +1,24 @@
+#
+# tg_bot - notes_sql [From Upstream 6b1d961]
+# Copyright (C) 2017-2019, Paul Larsen
+# Copyright (c) 2019-2021, corsicanu
+# Copyright (c) 2020-2021, soulr344
+# Copyright (c) 2021, Sung Mingi a.k.a. FiestaLake
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
 # Note: chat_id's are stored as strings because the int is too large to be stored in a PSQL database.
 import threading
 
@@ -16,13 +37,15 @@ class Notes(BASE):
     is_reply = Column(Boolean, default=False)
     has_buttons = Column(Boolean, default=False)
     msgtype = Column(Integer, default=Types.BUTTON_TEXT.value)
+    md_ver = Column(Integer, default=1)
 
-    def __init__(self, chat_id, name, value, msgtype, file=None):
+    def __init__(self, chat_id, name, value, msgtype, file=None, md_ver=2):
         self.chat_id = str(chat_id)  # ensure string
         self.name = name
         self.value = value
         self.msgtype = msgtype
         self.file = file
+        self.md_ver = md_ver
 
     def __repr__(self):
         return "<Note %s>" % self.name

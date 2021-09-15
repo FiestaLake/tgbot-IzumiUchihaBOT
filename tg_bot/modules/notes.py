@@ -27,7 +27,7 @@ from typing import Optional
 from telegram import MAX_MESSAGE_LENGTH, ParseMode, InlineKeyboardMarkup
 from telegram import Message, Update, Chat, User
 from telegram.error import BadRequest
-from telegram.ext import CommandHandler, RegexHandler, Filters
+from telegram.ext import CommandHandler, RegexHandler, Filters, CallbackQueryHandler
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.utils.helpers import mention_html
 
@@ -234,36 +234,6 @@ def clear(update: Update, context: CallbackContext):
     msg.reply_text("The note to clear couldn't be found.")
 
 
-def list_notes(update: Update, context: CallbackContext):
-    chat = update.effective_chat  # type: Optional[Chat]
-    msg = update.effective_message  # type: Optional[Message]
-    note_list = sql.get_all_chat_notes(chat.id)
-    reply = "*Get notes* available in here\n"
-    reply += "by adding the *ID* or *Name*\n"
-    reply += "after doing `#` or `/get `\n\n"
-    reply += "*ID*     *Name*\n"
-    del_reply = reply
-    count = 1
-
-    for note in note_list:
-        if count < 10:
-            note_name = "`{}`\.      ".format(count) + "`{}`\n".format(note.name)
-        if count >= 10 and count < 100:
-            note_name = "`{}`\.    ".format(count) + "`{}`\n".format(note.name)
-        if count >= 100:
-            note_name = "`{}`\.  ".format(count) + "`{}`\n".format(note.name)
-        if len(reply) + len(note_name) > MAX_MESSAGE_LENGTH:
-            msg.reply_text(reply, parse_mode=ParseMode.MARKDOWN_V2)
-            reply = ""
-        reply += note_name
-        count = count + 1
-
-    if del_reply == reply:
-        msg.reply_text("No notes in here!")
-        return
-
-    msg.reply_text(text=reply, parse_mode=ParseMode.MARKDOWN_V2)
-
 @user_admin
 @loggable
 def clearall(update: Update, context: CallbackContext):
@@ -272,6 +242,10 @@ def clearall(update: Update, context: CallbackContext):
     user = update.effective_user  # type: Optional[User]
     msg = update.effective_message  # type: Optional[Message]
     query = update.callback_query
+
+    if not chat.type in ("group", "supergroup"):
+        msg.reply_text("This command is made to be used in groups!")
+        return
 
     if query:
         try:
@@ -319,6 +293,37 @@ def clearall(update: Update, context: CallbackContext):
     return ""
 
 
+def list_notes(update: Update, context: CallbackContext):
+    chat = update.effective_chat  # type: Optional[Chat]
+    msg = update.effective_message  # type: Optional[Message]
+    note_list = sql.get_all_chat_notes(chat.id)
+    reply = "*Get notes* available in here\n"
+    reply += "by adding the *ID* or *Name*\n"
+    reply += "after doing `#` or `/get `\n\n"
+    reply += "*ID*     *Name*\n"
+    del_reply = reply
+    count = 1
+
+    for note in note_list:
+        if count < 10:
+            note_name = "`{}`\.      ".format(count) + "`{}`\n".format(note.name)
+        if count >= 10 and count < 100:
+            note_name = "`{}`\.    ".format(count) + "`{}`\n".format(note.name)
+        if count >= 100:
+            note_name = "`{}`\.  ".format(count) + "`{}`\n".format(note.name)
+        if len(reply) + len(note_name) > MAX_MESSAGE_LENGTH:
+            msg.reply_text(reply, parse_mode=ParseMode.MARKDOWN_V2)
+            reply = ""
+        reply += note_name
+        count = count + 1
+
+    if del_reply == reply:
+        msg.reply_text("No notes in here!")
+        return
+
+    msg.reply_text(text=reply, parse_mode=ParseMode.MARKDOWN_V2)
+
+
 def __import_data__(chat_id, data):
     failures = []
     for notename, notedata in data.get("extra", {}).items():
@@ -355,9 +360,7 @@ def __migrate__(old_chat_id, new_chat_id):
 
 def __chat_settings__(chat_id, user_id):
     notes = sql.get_all_chat_notes(chat_id)
-    return "There are `{}` notes in this chat".format(
-        len(notes)
-    )
+    return "There are `{}` notes in this chat".format(len(notes))
 
 
 __help__ = """
@@ -402,6 +405,11 @@ DELETE_HANDLER = CommandHandler(
 DELETEALL_HANDLER = CommandHandler(
     "clearall", clearall, run_async=True, filters=Filters.chat_type.groups
 )
+HASH_DELETEALL_HANDLER = CallbackQueryHandler(
+    pattern = r"clearall_",
+    callback = clearall,
+    run_async=True,
+)
 LIST_HANDLER = DisableAbleCommandHandler(
     ["notes", "saved"],
     list_notes,
@@ -416,4 +424,5 @@ dispatcher.add_handler(SAVE_HANDLER)
 dispatcher.add_handler(LIST_HANDLER)
 dispatcher.add_handler(DELETE_HANDLER)
 dispatcher.add_handler(DELETEALL_HANDLER)
+dispatcher.add_handler(HASH_DELETEALL_HANDLER)
 dispatcher.add_handler(HASH_GET_HANDLER)

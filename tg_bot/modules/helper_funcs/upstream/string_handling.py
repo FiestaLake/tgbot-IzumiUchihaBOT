@@ -80,7 +80,7 @@ def _selective_escape(to_parse: str, version: 1 = int) -> str:
     elif int(version) == 2:
         regex = MATCH_MD_V2
     else:
-        raise ValueError('Markdown version must be either 1 or 2!')
+        raise ValueError("Markdown version must be either 1 or 2!")
 
     for match in regex.finditer(to_parse):
         if match.group("esc"):
@@ -123,7 +123,7 @@ def parse_markdown(
     """
     version = int(version)
     if version not in (1, 2):
-        raise ValueError('Markdown version must be either 1 or 2!')
+        raise ValueError("Markdown version must be either 1 or 2!")
     if not entities:
         entities = {}
     if not txt:
@@ -160,12 +160,14 @@ def parse_markdown(
             else:
                 # Links need special escaping. Also can't have entities nested within
                 url = escape_markdown(ent.url, version=version, entity_type="text_link")
-            res += _selective_escape(txt[prev:start], version) + "[{}]({})".format(text, url)
+            res += _selective_escape(txt[prev:start], version) + "[{}]({})".format(
+                text, url
+            )
 
         elif ent.type == "text_mention" and ent.user.id:
-            res += _selective_escape(txt[prev:start], version) + "[{}](tg://user?id={})".format(
-                text, ent.user.id
-            )
+            res += _selective_escape(
+                txt[prev:start], version
+            ) + "[{}](tg://user?id={})".format(text, ent.user.id)
 
         elif re.search(BTN_URL_REGEX, ent_text) and buttoned:
             res += _selective_escape(txt[prev:start], version) + ent_text

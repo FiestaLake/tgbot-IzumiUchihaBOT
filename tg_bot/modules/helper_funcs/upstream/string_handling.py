@@ -1,8 +1,11 @@
 #
-# tg_bot - string_handling [From Upstream 6b1d961]
+# tg_bot - string_handling [From d72236b of dev branch]
 # Copyright (C) 2017-2019, Paul Larsen
 # Copyright (C) 2015-2021 Leandro Toledo de Souza
 # Copyright (c) 2021, Sung Mingi a.k.a. FiestaLake
+#
+# Backported to c3f098a of master branch.
+# Some functions may still be remained / not backported as legacy.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -19,8 +22,7 @@
 #
 
 import re
-import sys
-from typing import Dict, Optional
+from typing import Dict
 import emoji
 
 from telegram import MessageEntity
@@ -46,7 +48,6 @@ MATCH_MD = re.compile(
     r"(?<!\\)(\[.*?\])(\(.*?\))|"
     r"(?P<esc>[*_`\[])"
 )
-
 MATCH_MD_V2 = re.compile(
     r"\*(.*?)\*|"
     r"_(.*?)_|"
@@ -106,7 +107,9 @@ def _calc_emoji_offset(to_calc) -> int:
 def parse_markdown(
     txt: str,
     entities: Dict[MessageEntity, str] = None,
+    escaped: bool = True,
     buttoned: bool = False,
+    urled: bool = False,
     version: int = 1,
     offset: int = 0,
 ) -> str:
@@ -122,6 +125,7 @@ def parse_markdown(
     :return: valid markdown string
     """
     version = int(version)
+    escaped = bool(escaped)
     if version not in (1, 2):
         raise ValueError("Markdown version must be either 1 or 2!")
     if not entities:
@@ -131,9 +135,6 @@ def parse_markdown(
 
     prev = 0
     res = ""
-    # Loop over all message entities, and:
-    # reinsert code
-    # escape free-standing urls
     for ent, ent_text in entities.items():
         if ent.offset < -offset:
             continue
@@ -142,49 +143,90 @@ def parse_markdown(
         end = ent.offset + offset + ent.length - 1  # end of entity
         text = escape_markdown(ent_text, version)
 
-        # count emoji to switch counter
+        # Count emoji to switch counter.
         count = _calc_emoji_offset(txt[:start])
         start -= count
         end -= count
 
-        if ent.type == "url":
-            if version == 1:
-                link = ent_text
+        if re.search(BTN_URL_REGEX, ent_text) and buttoned:
+            if escaped:
+                res += _selective_escape(txt[prev:start], version) + ent_text
             else:
-                link = text
-            res += _selective_escape(txt[prev:start], version) + f"[{link}]({ent_text})"
+                res += txt[prev:start] + ent_text
+
+        elif ent.type == "url":
+            # Do not escape if url is in []().
+            if any(
+                match.start(1) <= start and end <= match.end(1)
+                for match in LINK_REGEX.finditer(txt)
+            ):
+                continue
+
+            if version == 1:
+                link_text = ent_text
+            else:
+                link_text = text
+
+            if urled:
+                link = f"[{link_text}]({ent_text})"
+            else:
+                link = link_text
+
+            if escaped:
+                res += _selective_escape(txt[prev:start], version) + link
+            else:
+                res += txt[prev:start] + link
 
         elif ent.type == "text_link":
             if version == 1:
                 url = ent.url
             else:
-                # Links need special escaping. Also can't have entities nested within
                 url = escape_markdown(ent.url, version=version, entity_type="text_link")
-            res += _selective_escape(txt[prev:start], version) + "[{}]({})".format(
-                text, url
-            )
+
+            if escaped:
+                res += _selective_escape(txt[prev:start], version) + "[{}]({})".format(
+                    text, url
+                )
+            else:
+                res += txt[prev:start] + "[{}]({})".format(text, url)
 
         elif ent.type == "text_mention" and ent.user.id:
-            res += _selective_escape(
-                txt[prev:start], version
-            ) + "[{}](tg://user?id={})".format(text, ent.user.id)
-
-        elif re.search(BTN_URL_REGEX, ent_text) and buttoned:
-            res += _selective_escape(txt[prev:start], version) + ent_text
+            if escaped:
+                res += _selective_escape(
+                    txt[prev:start], version
+                ) + "[{}](tg://user?id={})".format(text, ent.user.id)
+            else:
+                res += txt[prev:start] + "[{}](tg://user?id={})".format(
+                    text, ent.user.id
+                )
 
         elif ent.type == "bold":
-            res += _selective_escape(txt[prev:start], version) + "*" + text + "*"
+            if escaped:
+                res += _selective_escape(txt[prev:start], version) + "*" + text + "*"
+            else:
+                res += txt[prev:start] + "*" + text + "*"
 
         elif ent.type == "italic":
-            res += _selective_escape(txt[prev:start], version) + "_" + text + "_"
+            if escaped:
+                res += _selective_escape(txt[prev:start], version) + "_" + text + "_"
+            else:
+                res += txt[prev:start] + "_" + text + "_"
 
         elif ent.type == "code":
-            res += (
-                _selective_escape(txt[prev:start], version)
-                + "`"
-                + escape_markdown(ent_text, version=version, entity_type="code")
-                + "`"
-            )
+            if escaped:
+                res += (
+                    _selective_escape(txt[prev:start], version)
+                    + "`"
+                    + escape_markdown(ent_text, version=version, entity_type="code")
+                    + "`"
+                )
+            else:
+                res += (
+                    txt[prev:start]
+                    + "`"
+                    + escape_markdown(ent_text, version=version, entity_type="code")
+                    + "`"
+                )
 
         elif ent.type == "pre":
             code = escape_markdown(ent_text, version=version, entity_type="pre")
@@ -196,29 +238,55 @@ def parse_markdown(
                 else:
                     prefix = "```\n"
 
-            res += _selective_escape(txt[prev:start], version) + prefix + code + "```"
+            if escaped:
+                res += (
+                    _selective_escape(txt[prev:start], version) + prefix + code + "```"
+                )
+            else:
+                res += txt[prev:start] + prefix + code + "```"
 
         elif ent.type == "underline":
             if version == 1:
-                raise ValueError(
-                    "Underline entities are not supported for Markdown version 1"
-                )
-            res += _selective_escape(txt[prev:start], version) + "__" + text + "__"
+                if escaped:
+                    res += _selective_escape(txt[prev:start], version) + text
+                else:
+                    res += txt[prev:start] + text
+            else:
+                if escaped:
+                    res += (
+                        _selective_escape(txt[prev:start], version) + "__" + text + "__"
+                    )
+                else:
+                    res += txt[prev:start] + "__" + text + "__"
 
         elif ent.type == "strikethrough":
             if version == 1:
-                raise ValueError(
-                    "Underline entities are not supported for Markdown version 1"
-                )
-            res += _selective_escape(txt[prev:start], version) + "~" + text + "~"
+                if escaped:
+                    res += _selective_escape(txt[prev:start], version) + text
+                else:
+                    res += txt[prev:start] + text
+            else:
+                if escaped:
+                    res += (
+                        _selective_escape(txt[prev:start], version) + "~" + text + "~"
+                    )
+                else:
+                    res += txt[prev:start] + "~" + text + "~"
 
         else:
-            res += _selective_escape(txt[prev:start], version) + text
+            if escaped:
+                res += _selective_escape(txt[prev:start], version) + text
+            else:
+                res += txt[prev:start] + text
 
         end += 1
         prev = end
 
-    res += _selective_escape(txt[prev:], version)  # Add the rest of the text.
+    # Add the rest of the text.
+    if escaped:
+        res += _selective_escape(txt[prev:], version)
+    else:
+        res += txt[prev:]
     return res
 
 
@@ -229,7 +297,7 @@ def parse_button_markdown(
     offset: int = 0,
 ) -> tuple("str, List"):
     version = int(version)
-    markdown_note = parse_markdown(message_text, entities, True, version, offset)
+    markdown_note = parse_markdown(message_text, entities, buttoned=True, version=version, offset=offset)
 
     prev = 0
     note_data = ""

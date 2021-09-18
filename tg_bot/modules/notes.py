@@ -1,9 +1,12 @@
 #
-# tg_bot - notes [From Upstream 6b1d961]
+# tg_bot - notes [From d72236b of dev branch]
 # Copyright (C) 2017-2019, Paul Larsen
 # Copyright (c) 2019-2021, corsicanu
 # Copyright (c) 2020-2021, soulr344
 # Copyright (c) 2021, Sung Mingi a.k.a. FiestaLake
+#
+# Backported to c3f098a of master branch.
+# Some functions may still be remained / not backported as legacy.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -122,6 +125,12 @@ def get(bot, update, notename, show_none=True, no_format=False):
                     reply_to_message_id=reply.message_id,
                     reply_markup=keyboard,
                 )
+                if no_format:
+                    bot.send_message(
+                        chat.id,
+                        text,
+                        reply_to_message_id=reply.message_id,                
+                    )
             else:
                 ENUM_FUNC_MAP[note.msgtype](
                     chat.id,
@@ -133,12 +142,8 @@ def get(bot, update, notename, show_none=True, no_format=False):
                 )
 
         except BadRequest as excp:
-            if excp.message == "Entity_mention_user_invalid":
-                msg.reply_text(
-                    "The user you want to mention hasn't seen by me yet."
-                    "\nForward me one of their messages to mention them."
-                )
-            elif FILE_MATCHER.match(note.value):
+            # For legacy purpose.
+            if FILE_MATCHER.match(note.value):
                 msg.reply_text(
                     "I couldn't send this note due to incorrectly imported files."
                     "\nI will remove the note. Save it again if you need it."
@@ -331,32 +336,6 @@ def list_notes(update: Update, context: CallbackContext):
     msg.reply_text(text=reply, parse_mode=ParseMode.MARKDOWN_V2)
 
 
-def __import_data__(chat_id, data):
-    failures = []
-    for notename, notedata in data.get("extra", {}).items():
-        match = FILE_MATCHER.match(notedata)
-
-        if match:
-            failures.append(notename)
-            notedata = notedata[match.end() :].strip()
-            if notedata:
-                sql.add_note_to_db(chat_id, notename[1:], notedata, sql.Types.TEXT)
-        else:
-            sql.add_note_to_db(chat_id, notename[1:], notedata, sql.Types.TEXT)
-
-    if failures:
-        with BytesIO(str.encode("\n".join(failures))) as output:
-            output.name = "failed_imports.txt"
-            dispatcher.bot.send_document(
-                chat_id,
-                document=output,
-                filename="failed_imports.txt",
-                caption="These files/photos failed to import due to originating "
-                "from another bot. This is a telegram API restriction, and can't "
-                "be avoided. Sorry for the inconvenience!",
-            )
-
-
 def __stats__():
     return "{} notes, across {} chats.".format(sql.num_notes(), sql.num_chats())
 
@@ -390,9 +369,10 @@ Even works on media!
 - /notes: List all notes in the group.
 - /clearall: Delete all notes in the group.
 
-*Tip*: To retrieve a note without the formatting, add `noformat` \
+NOTE: You can only keep buttons with sticker when saving notes. \
+Text is not supported by Telegram.
+*Tip 1*: To retrieve a note without the formatting, add `noformat` \
 after /get `<notename/noteid>`.
-
 *Tip 2*: Check /markdownhelp to see available markdowns.
 """
 
@@ -424,7 +404,6 @@ LIST_HANDLER = DisableAbleCommandHandler(
     run_async=True,
     filters=Filters.chat_type.groups,
 )
-
 
 dispatcher.add_handler(GET_HANDLER)
 dispatcher.add_handler(SAVE_HANDLER)

@@ -297,7 +297,9 @@ def parse_button_markdown(
     offset: int = 0,
 ) -> tuple("str, List"):
     version = int(version)
-    markdown_note = parse_markdown(message_text, entities, buttoned=True, version=version, offset=offset)
+    markdown_note = parse_markdown(
+        message_text, entities, buttoned=True, version=version, offset=offset
+    )
 
     prev = 0
     note_data = ""

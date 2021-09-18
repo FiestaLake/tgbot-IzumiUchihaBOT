@@ -684,9 +684,7 @@ SPANK_HANDLER = DisableAbleCommandHandler("spank", slap, run_async=True)
 PUNCH_HANDLER = DisableAbleCommandHandler("punch", punch, run_async=True)
 INFO_HANDLER = DisableAbleCommandHandler("info", info, run_async=True)
 ECHO_HANDLER = DisableAbleCommandHandler("echo", echo, run_async=True)
-MD_HELP_HANDLER = CommandHandler(
-    "markdownhelp", markdown_help, run_async=True
-)
+MD_HELP_HANDLER = CommandHandler("markdownhelp", markdown_help, run_async=True)
 STATS_HANDLER = CommandHandler(
     "stats", stats, filters=CustomFilters.sudo_filter, run_async=True
 )

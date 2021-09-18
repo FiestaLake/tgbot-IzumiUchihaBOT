@@ -129,7 +129,7 @@ def get(bot, update, notename, show_none=True, no_format=False):
                     bot.send_message(
                         chat.id,
                         text,
-                        reply_to_message_id=reply.message_id,                
+                        reply_to_message_id=reply.message_id,
                     )
             else:
                 ENUM_FUNC_MAP[note.msgtype](
@@ -367,13 +367,14 @@ Save a new note called "word". Replying to a message will save that message. \
 Even works on media!
 - /clear `<notename/noteid>`: Delete the associated note.
 - /notes: List all notes in the group.
-- /clearall: Delete all notes in the group.
+- /saved: Same as /notes
+- /clearall: Delete all notes in the group. It cannot be undone.
 
-NOTE: You can only keep buttons with sticker when saving notes. \
+*NOTE*: You can only keep buttons with sticker when saving notes. \
 Text is not supported by Telegram.
 *Tip 1*: To retrieve a note without the formatting, add `noformat` \
 after /get `<notename/noteid>`.
-*Tip 2*: Check /markdownhelp to see available markdowns.
+*Tip 2*: Check /markdownhelp to see supported markdowns.
 """
 
 __mod_name__ = "Notes"
@@ -393,8 +394,8 @@ DELETEALL_HANDLER = CommandHandler(
     "clearall", clearall, run_async=True, filters=Filters.chat_type.groups
 )
 HASH_DELETEALL_HANDLER = CallbackQueryHandler(
-    pattern = r"clearall_",
-    callback = clearall,
+    pattern=r"clearall_",
+    callback=clearall,
     run_async=True,
 )
 LIST_HANDLER = DisableAbleCommandHandler(

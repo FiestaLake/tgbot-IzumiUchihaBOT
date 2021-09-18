@@ -75,51 +75,37 @@ def parse_note_type(msg: Message):
     if msg.sticker:
         # Sticker can't have text in the replied.
         sender_text = args[2] if len(args) >= 3 else ""
-        buttons = parse_button_markdown(
-            sender_text, entities, 2, offset
-        )[1]
+        buttons = parse_button_markdown(sender_text, entities, 2, offset)[1]
         content = msg.sticker.file_id
         data_type = Types.STICKER
 
     elif msg.document:
         content = msg.document.file_id
-        text, buttons = parse_button_markdown(
-            note_text, entities, 2, offset
-        )
+        text, buttons = parse_button_markdown(note_text, entities, 2, offset)
         data_type = Types.DOCUMENT
 
     elif msg.photo:
         content = msg.photo[-1].file_id  # last elem = best quality
-        text, buttons = parse_button_markdown(
-            note_text, entities, 2, offset
-        )
+        text, buttons = parse_button_markdown(note_text, entities, 2, offset)
         data_type = Types.PHOTO
 
     elif msg.audio:
         content = msg.audio.file_id
-        text, buttons = parse_button_markdown(
-            note_text, entities, 2, offset
-        )
+        text, buttons = parse_button_markdown(note_text, entities, 2, offset)
         data_type = Types.AUDIO
 
     elif msg.voice:
         content = msg.voice.file_id
-        text, buttons = parse_button_markdown(
-            note_text, entities, 2, offset
-        )
+        text, buttons = parse_button_markdown(note_text, entities, 2, offset)
         data_type = Types.VOICE
 
     elif msg.video:
         content = msg.video.file_id
-        text, buttons = parse_button_markdown(
-            note_text, entities, 2, offset
-        )
+        text, buttons = parse_button_markdown(note_text, entities, 2, offset)
         data_type = Types.VIDEO
 
     elif msg.text:  # For safety, do not allow caption when saving text only.
-        text, buttons = parse_button_markdown(
-            note_text, entities, 2, offset
-        )
+        text, buttons = parse_button_markdown(note_text, entities, 2, offset)
         if len(text.strip()) == 0:
             text = escape_markdown(note_name, 2)
 

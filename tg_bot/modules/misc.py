@@ -605,16 +605,22 @@ Let's learn how to use them!
 - <code>[button](buttonurl://google.com)</code>: This will create a button which links to Google.
 If you want multiple buttons on the same row, use <code>:same</code>;
 For example:
-<code>[1](buttonurl://naver.com)</code>
-<code>[2](buttonurl://duckduckgo.com)</code>
+<code>[1](buttonurl:naver.com)</code>
+<code>[2](buttonurl:/duckduckgo.com)</code>
 <code>[3](buttonurl://google.com:same)</code>
 This will create button 1 on the first row, and button 2 & 3 underneath on the same line.
 """
 
 
 def markdown_help(update: Update, context: CallbackContext):
-    bot = context.bot
-    update.effective_message.reply_text(MARKDOWN_HELP, parse_mode=ParseMode.HTML)
+    chat = update.effective_chat
+    msg = update.effective_message
+
+    if not chat.type == "private":
+        msg.reply_text("This command is made to be used in PM!")
+        return
+
+    msg.reply_text(MARKDOWN_HELP, parse_mode=ParseMode.HTML)
 
 
 def stats(update: Update, context: CallbackContext):
@@ -679,7 +685,7 @@ PUNCH_HANDLER = DisableAbleCommandHandler("punch", punch, run_async=True)
 INFO_HANDLER = DisableAbleCommandHandler("info", info, run_async=True)
 ECHO_HANDLER = DisableAbleCommandHandler("echo", echo, run_async=True)
 MD_HELP_HANDLER = CommandHandler(
-    "markdownhelp", markdown_help, filters=Filters.chat_type.private, run_async=True
+    "markdownhelp", markdown_help, run_async=True
 )
 STATS_HANDLER = CommandHandler(
     "stats", stats, filters=CustomFilters.sudo_filter, run_async=True

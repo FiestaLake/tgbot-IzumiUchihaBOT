@@ -72,7 +72,7 @@ def get(bot, update, notename, show_none=True, no_format=False):
         check = sql.get_note(chat.id, notename)
         # Choose notename instead of noteid.
         if check:
-            msg.reply_text(WARNING.format(notename=notename))
+            msg.reply_text(WARNING.format(notename))
             note = check
         # Search notename for given noteid.
         else:
@@ -227,7 +227,7 @@ def clear(update: Update, context: CallbackContext):
         check = sql.get_note(chat.id, notename)
         # Choose notename instead of noteid.
         if check:
-            msg.reply_text(WARNING.format(notename=notename))
+            msg.reply_text(WARNING.format(notename))
         # Search notename for given noteid.
         else:
             note_list = sql.get_all_chat_notes(chat.id)

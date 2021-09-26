@@ -1,32 +1,56 @@
-import time
+#
+# tg_bot - android [From 235a01c6d of dev branch]
+# Copyright (c) 2019-2021, corsicanu
+# Copyright (c) 2020-2021, soulr344
+# Copyright (c) 2021, Sung Mingi a.k.a. FiestaLake
+#
+# Backported to 8b0d8866e of master branch.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+from typing import Optional
 
 from bs4 import BeautifulSoup
 from requests import get
 from yaml import load, Loader
 
-from telegram import Update, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.error import BadRequest
+from telegram import Update, Message, ParseMode
 
 from tg_bot import dispatcher, CallbackContext
 from tg_bot.modules.disable import DisableAbleCommandHandler
 from tg_bot.modules.github import getphh
+
 
 GITHUB = "https://github.com"
 DEVICES_DATA = "https://raw.githubusercontent.com/androidtrackers/certified-android-devices/master/by_device.json"
 
 
 def phh(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    index = int(args[0]) if len(args) > 0 and args[0].isdigit() else 0
+    args = context.args
+    msg = update.effective_message  # type: Optional[Message]
+
+    index = int(args[0]) if args and args[0].isdigit() else 0
     text = getphh(index)
-    update.effective_message.reply_text(
-        text, parse_mode=ParseMode.HTML, disable_web_page_preview=True
-    )
+
+    msg.reply_text(text, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
 
-def magisk(update: Update, context: CallbackContext):
-    bot = context.bot
+def magisk(update: Update, unused_context: CallbackContext):
+    msg = update.effective_message  # type: Optional[Message]
     url = "https://raw.githubusercontent.com/topjohnwu/magisk-files/"
+
     releases = ""
     for type, branch in {
         "Stable": "master/stable",
@@ -42,153 +66,103 @@ def magisk(update: Update, context: CallbackContext):
         if str(type) == "Canary":
             notes = "https://github.com/topjohnwu/magisk-files/blob/canary/notes.md"
         releases += (
-            f'*• {type}* - `{data["magisk"]["version"]}-{data["magisk"]["versionCode"]}` → '
-            f"[Notes]({notes}) / "
-            f'[Magisk]({data["magisk"]["link"]}) \n'
+            f'• {type} - <code>{data["magisk"]["version"]}'
+            f'-{data["magisk"]["versionCode"]}</code> → '
+            f'<a href="{notes}">Notes</a> / '
+            f'<a href="{data["magisk"]["link"]}">Magisk</a>\n'
         )
 
-    del_msg = update.message.reply_text(
-        "*Latest Magisk Releases:*\n{} \n"
-        "*Install/uninstall instructions*:\nhttps://topjohnwu.github.io/Magisk/install.html".format(
-            releases
-        ),
-        parse_mode=ParseMode.MARKDOWN,
+    msg.reply_text(
+        "<b>Latest Magisk Releases:</b>\n\n{}\n"
+        "<a href='https://topjohnwu.github.io/Magisk/install.html'>"
+        "Install/uninstall instruction</a>".format(releases),
+        parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
-    time.sleep(300)
-    try:
-        del_msg.delete()
-        update.effective_message.delete()
-    except BadRequest as err:
-        if err.message in ("Message to delete not found", "Message can't be deleted"):
-            return
 
 
 def device(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    if len(args) == 0:
-        reply = "No codename provided, write a codename for fetching informations."
-        del_msg = update.effective_message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
-        time.sleep(5)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-            return
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
+    args = context.args
+    msg = update.effective_message  # type: Optional[Message]
+
+    if not args:
+        msg.reply_text("No codename provided.")
+        return
+
     device = " ".join(args)
     db = get(DEVICES_DATA).json()
-    newdevice = device.strip("lte") if device.startswith("beyond") else device
     try:
         reply = f"Search results for {device}:\n\n"
-        brand = db[newdevice][0]["brand"]
-        name = db[newdevice][0]["name"]
-        model = db[newdevice][0]["model"]
-        codename = newdevice
+        brand = db[device][0]["brand"]
+        name = db[device][0]["name"]
+        model = db[device][0]["model"]
+        codename = device
         reply += (
             f"<b>{brand} {name}</b>\n"
             f"Model: <code>{model}</code>\n"
             f"Codename: <code>{codename}</code>\n\n"
         )
-    except KeyError as err:
-        reply = f"Couldn't find info about {device}!\n"
-        del_msg = update.effective_message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
-        time.sleep(5)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
-    update.message.reply_text(
-        "{}".format(reply), parse_mode=ParseMode.HTML, disable_web_page_preview=True
-    )
+    except KeyError:
+        msg.reply_text(f"Couldn't find info about {device}!")
+        return
+
+    msg.reply_text(reply, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
 
 def getfw(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    if len(args) < 2:
-        msg = update.effective_message
-        msg.reply_text("Provide a valid type of fw!")
+    args = context.args
+    msg = update.effective_message  # type: Optional[Message]
+
+    if not args:
+        msg.reply_text("Provide a valid type!")
         return
 
-    if args[0] == "M":
-        msg = update.effective_message
-        codename = args[1]
+    if args[0].lower() == "m":
+        if len(args) < 2:
+            msg.reply_text("Provide a valid codename!")
+            return
 
+        codename = args[1]
         URL = "https://raw.githubusercontent.com/XiaomiFirmwareUpdater/miui-updates-tracker/master/data/latest.yml"
 
         yaml_data = load(get(URL).content, Loader=Loader)
         data = [i for i in yaml_data if codename in i["codename"]]
 
-        if len(data) < 1:
-            del_msg = msg.reply_text("Provide a valid codename!")
-            time.sleep(5)
-            try:
-                del_msg.delete()
-                update.effective_message.delete()
-                return
-            except BadRequest as err:
-                if err.message in (
-                    "Message to delete not found",
-                    "Message can't be deleted",
-                ):
-                    return
+        if not data:
+            msg.reply_text("Provide a valid codename!")
+            return
 
-        markup = []
+        fwreply = []
         for fw in data:
-            av = fw["android"]
+            android = fw["android"]
             branch = fw["branch"]
             method = fw["method"]
             link = fw["link"]
-            fname = fw["name"]
+            fcodename = fw["codename"]
             version = fw["version"]
 
-            btn = fname + " | " + branch + " | " + method + " | " + version
-            markup.append([InlineKeyboardButton(text=btn, url=link)])
+            text = f"{fcodename} | {version} ({android}, {branch}, {method})"
+            fwreply.append(f"<a href='{link}'>{text}</a>\n")
 
-        device = fname.split(" ")
-        device.pop()
-        device = " ".join(device)
-        del_msg = msg.reply_text(
-            f"The latest firmwares for *{device}* are:",
-            reply_markup=InlineKeyboardMarkup(markup),
-            parse_mode=ParseMode.MARKDOWN,
+        reply = f"<b>The latest firmwares for {codename}:</b>\n\n"
+        fwreply.sort()
+        for data in fwreply:
+            reply += data
+
+        msg.reply_text(
+            reply,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
         )
-        time.sleep(60)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-            return
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
+        return
 
-    if args[0] == "S":
+    if args[0].lower() == "s":
         if len(args) < 3:
-            msg = update.effective_message
-            msg.reply_text("Provide a valid type of csc!")
+            msg.reply_text("Provide both valid model and CSC!")
             return
-        none, temp, csc = args
-        model = "sm-" + temp if not temp.upper().startswith("SM-") else temp
+
+        temp, csc = args[1], args[2]
+        model = "sm-" + temp if not temp.lower().startswith("sm-") else temp
         fota = get(
             f"http://fota-cloud-dn.ospserver.net/firmware/{csc.upper()}/{model.upper()}/version.xml"
         )
@@ -196,19 +170,8 @@ def getfw(update: Update, context: CallbackContext):
             f"http://fota-cloud-dn.ospserver.net/firmware/{csc.upper()}/{model.upper()}/version.test.xml"
         )
         if test.status_code != 200:
-            del_msg = update.effective_message.reply_text(
-                "Provide a valid model and csc!"
-            )
-            time.sleep(5)
-            try:
-                del_msg.delete()
-                update.effective_message.delete()
-            except BadRequest as err:
-                if err.message in (
-                    "Message to delete not found",
-                    "Message can't be deleted",
-                ):
-                    return
+            msg.reply_text("Provide both valid model and CSC!")
+            return
 
         url1 = f"https://samfrew.com/model/{model.upper()}/region/{csc.upper()}/"
         url2 = (
@@ -221,218 +184,149 @@ def getfw(update: Update, context: CallbackContext):
         page2 = BeautifulSoup(test.content, "lxml")
         os1 = page1.find("latest").get("o")
         os2 = page2.find("latest").get("o")
-        reply = ""
-        if page1.find("latest").text.strip():
-            pda1, csc1, phone1 = page1.find("latest").text.strip().split("/")
-            reply += f"*Latest firmware for {model.upper()} and {csc.upper()} is:*\n"
-            reply += f"• PDA: `{pda1}`\n• CSC: `{csc1}`\n"
+        data1 = page1.find("latest").text.strip()
+        data2 = page2.find("latest").text.strip()
+        reply = f"<b>The latest firmwares for "
+        reply += f"{model.upper()} and {csc.upper()}:</b>\n\n"
+
+        if data1:
+            pda1, csc1, phone1 = data1.split("/")
+            reply += "<b>Latest public firmware:</b>\n"
+            reply += f"• PDA: <code>{pda1}</code>\n"
+            reply += f"• CSC: <code>{csc1}</code>\n"
             if phone1:
-                reply += f"• Phone: `{phone1}`\n"
+                reply += f"• Phone: <code>{phone1}</code>\n"
             if os1:
-                reply += f"• Android: `{os1}`\n"
-                reply += "\n"
+                reply += f"• Android: <code>{os1}</code>\n"
+            reply += "\n"
         else:
-            reply += (
-                f"*No public release found for {model.upper()} and {csc.upper()}.*\n\n"
-            )
-        if len(page2.find("latest").text.strip().split("/")) == 3:
-            if os2 is None:
-                reply += f"*Test release info is encrypted for {model.upper()} and {csc.upper()}.*\n\n"
+            reply += "<b>No public release found.</b>\n\n"
+
+        if len(data2.split("/")) > 2:
+            pda2, csc2, phone2 = data2.split("/")
+            reply += "<b>Latest test firmware:</b>\n"
+            reply += f"• PDA: <code>{pda2}</code>\n"
+            reply += f"• CSC: <code>{csc2}</code>\n"
+            if phone2:
+                reply += f"• Phone: <code>{phone2}</code>\n"
+            if os2:
+                reply += f"• Android: <code>{os2}</code>\n"
+            reply += "\n"
+        else:
+            if os2 and data2:
+                reply += "<b>Latest test firmware:</b>\n"
+                reply += f"• Hash: <code>{data2}</code>\n"
+                reply += f"• Android: <code>{os2}</code>\n"
             else:
-                reply += f"*Latest test firmware for {model.upper()} and {csc.upper()} is:*\n"
-                pda2, csc2, phone2 = page2.find("latest").text.strip().split("/")
-                reply += f"• PDA: `{pda2}`\n• CSC: `{csc2}`\n"
-                if phone2:
-                    reply += f"• Phone: `{phone2}`\n"
-                if os2:
-                    reply += f"• Android: `{os2}`\n"
-                reply += "\n"
-        elif os2 is not None:
-            reply += (
-                f"*Latest test firmware for {model.upper()} and {csc.upper()} is:*\n"
-            )
-            md5 = page2.find("latest").text.strip()
-            reply += f"• Hash: `{md5}`\n• Android: `{os2}`\n\n"
-        else:
-            reply += (
-                f"*No test release found for {model.upper()} and {csc.upper()}.*\n\n"
-            )
-        reply += f"*Downloads for {model.upper()} and {csc.upper()}*\n"
-        reply += f"• [samfrew.com]({url1})\n"
-        reply += f"• [sammobile.com]({url2})\n"
-        reply += f"• [sfirmware.com]({url3})\n"
-        reply += f"• [samfw.com]({url4})\n"
-        del_msg = update.message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
+                reply += "<b>No test release found.</b>\n\n"
+
+        reply += f"<b>Downloads</b>\n"
+        reply += f"• <a href='{url1}'>samfrew.com</a>\n"
+        reply += f"• <a href='{url2}'>sammobile.com</a>\n"
+        reply += f"• <a href='{url3}'>sfirmware.com</a>\n"
+        reply += f"• <a href='{url4}'>samfw.com</a>\n"
+
+        msg.reply_text(
+            reply,
+            parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
-
-        time.sleep(60)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-            return
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
-
-    else:
-        msg = update.effective_message
-        msg.reply_text("Provide a valid type of fw!")
         return
+
+    msg.reply_text("Provide a valid type!")
 
 
 def shrp(update: Update, context: CallbackContext):
-    bot = context.bot
     args = context.args
-    if len(args) == 0:
-        reply = "No codename provided, write a codename for fetching informations."
-        del_msg = update.effective_message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
-        time.sleep(5)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-            return
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
+    msg = update.effective_message  # type: Optional[Message]
+
+    if not args:
+        msg.reply_text("No codename provided.")
+        return
 
     device = " ".join(args)
-    url = get(f"https://sourceforge.net/projects/shrp/files/{device}/")
+    sf = f"https://sourceforge.net/projects/shrp/files/{device}/"
+    url = get(sf)
     if url.status_code == 404:
-        reply = f"Couldn't find shrp downloads for {device}!\n"
-        del_msg = update.effective_message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
-        time.sleep(5)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
-    else:
-        reply = f"*Official SHRP for {device}*\n"
-        db = get(DEVICES_DATA).json()
-        newdevice = device.strip("lte") if device.startswith("beyond") else device
-        try:
-            brand = db[newdevice][0]["brand"]
-            name = db[newdevice][0]["name"]
-            reply += f"*{brand} - {name}*\n"
-        except KeyError as err:
-            pass
-        reply += f"https://sourceforge.net/projects/shrp/files/{device}"
+        msg.reply_text(f"Couldn't find a SHRP folder for {device}!")
+        return
 
-        update.message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
+    reply = f"<b>Official SHRP Releases for {device}:</b>\n\n"
+    db = get(DEVICES_DATA).json()
+    try:
+        brand = db[device][0]["brand"]
+        name = db[device][0]["name"]
+        reply += f"<b>{brand} {name}</b>\n"
+    except KeyError:
+        pass
+
+    reply += f"<a href='{sf}'>Downloads</a>"
+    msg.reply_text(
+        reply,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
 
 
 def twrp(update: Update, context: CallbackContext):
-    bot, args = context.bot, context.args
-    if len(args) == 0:
-        reply = "No codename provided, write a codename for fetching informations."
-        del_msg = update.effective_message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
-        time.sleep(5)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-            return
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
+    args = context.args
+    msg = update.effective_message  # type: Optional[Message]
+
+    if not args:
+        msg.reply_text("No codename provided.")
+        return
 
     device = " ".join(args)
     url = get(f"https://eu.dl.twrp.me/{device}/")
     if url.status_code == 404:
-        reply = f"Couldn't find twrp downloads for {device}!\n"
-        del_msg = update.effective_message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
-        time.sleep(5)
-        try:
-            del_msg.delete()
-            update.effective_message.delete()
-        except BadRequest as err:
-            if err.message in (
-                "Message to delete not found",
-                "Message can't be deleted",
-            ):
-                return
-    else:
-        reply = f"*Latest Official TWRP for {device}*\n"
-        db = get(DEVICES_DATA).json()
-        newdevice = device.strip("lte") if device.startswith("beyond") else device
-        try:
-            brand = db[newdevice][0]["brand"]
-            name = db[newdevice][0]["name"]
-            reply += f"*{brand} - {name}*\n"
-        except KeyError as err:
-            pass
-        page = BeautifulSoup(url.content, "lxml")
-        date = page.find("em").text.strip()
-        reply += f"*Updated:* {date}\n"
-        trs = page.find("table").find_all("tr")
-        row = 2 if trs[0].find("a").text.endswith("tar") else 1
-        for i in range(row):
-            download = trs[i].find("a")
-            dl_link = f"https://eu.dl.twrp.me{download['href']}"
-            dl_file = download.text
-            size = trs[i].find("span", {"class": "filesize"}).text
-            reply += f"[{dl_file}]({dl_link}) - {size}\n"
+        msg.reply_text(f"Couldn't find a TWRP folder for {device}!")
+        return
 
-        update.message.reply_text(
-            "{}".format(reply),
-            parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
-        )
+    reply = f"<b>The latest Official TWRP release for {device}:</b>\n\n"
+    db = get(DEVICES_DATA).json()
+    try:
+        brand = db[device][0]["brand"]
+        name = db[device][0]["name"]
+        reply += f"<b>{brand} {name}</b>\n"
+    except KeyError:
+        pass
+
+    page = BeautifulSoup(url.content, "lxml")
+    date = page.find("em").text.strip()
+    reply += f"<b>Updated:</b> <code>{date}</code>\n"
+    trs = page.find("table").find_all("tr")
+    row = 2 if trs[0].find("a").text.endswith("tar") else 1
+
+    for i in range(row):
+        download = trs[i].find("a")
+        dl_link = f"https://eu.dl.twrp.me{download['href']}"
+        dl_file = download.text
+        size = trs[i].find("span", {"class": "filesize"}).text
+        reply += f"<a href='{dl_link}'>{dl_file}</a> - "
+        reply += f"<code>{size}</code>\n"
+
+    msg.reply_text(
+        reply,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
 
 
 __help__ = """
-If you are searching stuffs related to Android, then here you are.
+Are you in the groups with the topic of Android related groups?
+Nice commands are here to help you there!
 
- - /magisk - gets the latest magisk release for Stable/Beta/Canary
- - /device <codename> - gets android device basic info from its codename
- - /twrp <codename> -  gets latest twrp for the android device using the codename
- - /shrp <codename> -  gets latest shrp for the android device using the codename
- - /getfw S <model> <csc> - Samsung: gets firmware info & download links for the given model
- - /getfw M <codename> - Miui: gets firmware info & download links for the given codename
- 
- *Examples:*
-  /magisk
-  /device greatlte
-  /twrp a5y17lte
-  /shrp beyondx
-  /getfw S SM-M205FN SER
-  /getfw M whyred
- 
+*User commands*:
+ - /magisk - Gets the latest Magisk for Stable/Beta/Canary branch.
+ - /phh `<count>`- Gets the phhusson's phh treble releases.\
+ A higher count means an older release; latest (0) if count is not given.
+ - /device `<codename>` - Gets basic information of an Android device for the given codename.
+ - /twrp `<codename>` - Gets the latest TWRP for an Android device for the given codename.
+ - /shrp `<codename>` - Gets the latest SHRP for an Android device for the given codename.
+ - /getfw `<S/M>` - Gets firmware info & download links for Samsung (S) or MIUI (M) devices.
+  -> `M` `<codename>` - Fill out this to use the cmd for MIUI devices.
+  -> `S` `<model>` `<csc>` -\
+ Fill out these to use the cmd for Samsung devices.
 """
 
 __mod_name__ = "Android"

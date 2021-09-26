@@ -104,7 +104,7 @@ def getData(url, index) -> str:
 
 def getRepo(update, reponame):
     chat = update.effective_chat  # type: Optional[Chat]
-    msg = update.effective_message # type: Optional[Message]
+    msg = update.effective_message  # type: Optional[Message]
 
     # From notes module (dda0d97d14e545d06c2f1d4d11ed694dbb1c0b63).
     # Seperate process to get a shortcut for given ID.

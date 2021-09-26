@@ -21,7 +21,6 @@
 #
 
 from typing import Optional
-
 from bs4 import BeautifulSoup
 from requests import get
 from yaml import load, Loader

@@ -514,7 +514,7 @@ def migrate_chats(update: Update, context: CallbackContext):
         try:
             mod.__migrate__(old_chat, new_chat)
         except:
-            pass # Some sql modules make errors.
+            pass  # Some sql modules make errors.
 
     LOGGER.info("Successfully migrated!")
     raise DispatcherHandlerStop

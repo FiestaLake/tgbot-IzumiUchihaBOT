@@ -51,22 +51,21 @@ or feature requests you might have :)
 You can find the list of available commands with /help.
 """
 
+# We do not support `!` yet.
 HELP_STRINGS = """
-Have a look at the following for an idea of some of \
-the things I can help you with.
-{}
-*Main* commands available:
- - /start: start the bot
- - /help: PM's you this message.
- - /help <module name>: PM's you info about that module.
- - /settings:
-   - in PM: will send you your settings for all supported modules.
-   - in a group: will redirect you to pm, with all that chat's settings.
+*Help*
 
-Other available commands:
-""".format(
-    "" if not ALLOW_EXCL else "\nAll commands can either be used with / or !.\n"
-)
+Hey there!
+I am a group management bot, having a lot of useful features \
+which may help you operate groups you are in!
+
+*User commands:*
+ - /start: Start me. You've probably already used this.
+ - /help: Send this message.
+   -> /help `<module>`: Send you info of the module.
+
+All commands can be used with the following: `/`!
+"""
 
 
 IMPORTED = {}
@@ -215,7 +214,12 @@ def help_button(update: Update, context: CallbackContext):
     try:
         if mod_match:
             module = mod_match.group(1)
-            text = HELPABLE[module].__help__
+            text = (
+                "Here is the available help for the *{}* module:\n".format(
+                    HELPABLE[module].__mod_name__
+                )
+                + HELPABLE[module].__help__
+            )
             bot.sendMessage(
                 text=text,
                 chat_id=chat.id,
@@ -495,7 +499,6 @@ def get_settings(update: Update, context: CallbackContext):
 
 
 def migrate_chats(update: Update, context: CallbackContext):
-    bot = context.bot
     msg = update.effective_message  # type: Optional[Message]
     if msg.migrate_to_chat_id:
         old_chat = update.effective_chat.id
@@ -508,7 +511,10 @@ def migrate_chats(update: Update, context: CallbackContext):
 
     LOGGER.info("Migrating from %s, to %s", str(old_chat), str(new_chat))
     for mod in MIGRATEABLE:
-        mod.__migrate__(old_chat, new_chat)
+        try:
+            mod.__migrate__(old_chat, new_chat)
+        except:
+            pass  # Some sql modules make errors.
 
     LOGGER.info("Successfully migrated!")
     raise DispatcherHandlerStop

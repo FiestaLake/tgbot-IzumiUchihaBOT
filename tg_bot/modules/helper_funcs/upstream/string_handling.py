@@ -53,6 +53,7 @@ MATCH_MD_V2 = re.compile(
     r"_(.*?)_|"
     r"__(.*?)__|"
     r"~(.*?)~|"
+    r"\|\|(.*?)\|\||"
     r"`(.*?)`|"
     r"(?<!\\)(\[.*?\])(\(.*?\))|"
     r"(?P<esc>[_*\[\]()~`>#+-=|{}.!])"
@@ -272,6 +273,20 @@ def parse_markdown(
                     )
                 else:
                     res += txt[prev:start] + "~" + text + "~"
+
+        elif ent.type == "spoiler":
+            if version == 1:
+                if escaped:
+                    res += _selective_escape(txt[prev:start], version) + text
+                else:
+                    res += txt[prev:start] + text
+            else:
+                if escaped:
+                    res += (
+                        _selective_escape(txt[prev:start], version) + "||" + text + "||"
+                    )
+                else:
+                    res += txt[prev:start] + "||" + text + "||"
 
         else:
             if escaped:

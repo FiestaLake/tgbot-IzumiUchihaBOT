@@ -51,6 +51,7 @@ LOCK_TYPES = {
     "location": Filters.location,
     "emoji": CustomFilters.has_emoji,
     "bigemoji": CustomFilters.is_emoji,
+    "anonchannel": CustomFilters.is_anon_channel,
 }
 
 GIF = Filters.animation
@@ -398,7 +399,8 @@ def build_lock_message(chat_id):
                 "\n - game = `{}`"
                 "\n - location = `{}`"
                 "\n - emoji = `{}`"
-                "\n - bigemoji = `{}`".format(
+                "\n - bigemoji = `{}`"
+                "\n - anonchannel = `{}`".format(
                     locks.sticker,
                     locks.audio,
                     locks.voice,
@@ -415,6 +417,7 @@ def build_lock_message(chat_id):
                     locks.location,
                     locks.emoji,
                     locks.bigemoji,
+                    locks.anonchannel,
                 )
             )
         if restr:

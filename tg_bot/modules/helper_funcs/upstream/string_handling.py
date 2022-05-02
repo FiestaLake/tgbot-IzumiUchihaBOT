@@ -208,7 +208,7 @@ def parse_markdown(
                 if version == 1:
                     link_text = ent_text
                 else:
-                    link_text = text
+                    link_text = escape_markdown(ent_text, version=version)
 
                 if urled:
                     link = f"[{link_text}]({ent_text})"
@@ -229,17 +229,17 @@ def parse_markdown(
                     )
 
                 if escaped:
-                    res += _selective_escape(
-                        txt[prev:start], version
-                    )[0] + "[{}]({})".format(text, url)
+                    res += _selective_escape(txt[prev:start], version)[
+                        0
+                    ] + "[{}]({})".format(text, url)
                 else:
                     res += txt[prev:start] + "[{}]({})".format(text, url)
 
             elif ent.type == "text_mention" and ent.user.id:
                 if escaped:
-                    res += _selective_escape(
-                        txt[prev:start], version
-                    )[0] + "[{}](tg://user?id={})".format(text, ent.user.id)
+                    res += _selective_escape(txt[prev:start], version)[
+                        0
+                    ] + "[{}](tg://user?id={})".format(text, ent.user.id)
                 else:
                     res += txt[prev:start] + "[{}](tg://user?id={})".format(
                         text, ent.user.id
@@ -248,7 +248,10 @@ def parse_markdown(
             elif ent.type == "bold":
                 if escaped:
                     res += (
-                        _selective_escape(txt[prev:start], version)[0] + "*" + text + "*"
+                        _selective_escape(txt[prev:start], version)[0]
+                        + "*"
+                        + text
+                        + "*"
                     )
                 else:
                     res += txt[prev:start] + "*" + text + "*"
@@ -256,7 +259,10 @@ def parse_markdown(
             elif ent.type == "italic":
                 if escaped:
                     res += (
-                        _selective_escape(txt[prev:start], version)[0] + "_" + text + "_"
+                        _selective_escape(txt[prev:start], version)[0]
+                        + "_"
+                        + text
+                        + "_"
                     )
                 else:
                     res += txt[prev:start] + "_" + text + "_"

@@ -65,7 +65,7 @@ def promote(update: Update, context: CallbackContext, check="restrict") -> str:
             False if user_id not in SUDO_USERS else bot_member.can_restrict_members
         ),
         can_pin_messages=bot_member.can_pin_messages,
-        can_manage_voice_chats=bot_member.can_manage_voice_chats,
+        can_manage_video_chats=bot_member.can_manage_video_chats,
     )
 
     text = ""
@@ -165,7 +165,7 @@ def demote(update: Update, context: CallbackContext) -> str:
             can_restrict_members=False,
             can_pin_messages=False,
             can_promote_members=False,
-            can_manage_voice_chats=False,
+            can_manage_video_chats=False,
         )
 
         message.reply_text(

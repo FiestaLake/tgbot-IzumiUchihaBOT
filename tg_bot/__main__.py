@@ -40,7 +40,7 @@ from tg_bot.modules.helper_funcs.misc import paginate_modules
 PM_START_TEXT = """
 Hi {}, my name is *{}*!
 
-I'm a group manager bot built in python3, using the python-telegram-bot library. And I'm fully [open source](github.com/FiestaLake/tgbot)!
+I'm a group manager bot built in python3, using the python-telegram-bot library. And I'm fully [open source](github.com/FiestaLake/tgbot-IzumiUchihaBOT)!
 
 You can join our [News Channel](https://t.me/MinjiNews) ( @MinjiNews ) for announcements \
 regarding bot updates, new features and possible bug fixes.
